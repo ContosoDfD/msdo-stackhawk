@@ -5,6 +5,8 @@ on:
 jobs:
   hawkscan:
     name: HawkScan
+    permissions:
+      id-token: write
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -29,11 +31,19 @@ jobs:
           APP_ID: ${{ secrets.appId }}
           NO_PROGRESS: true
           SARIF_ARTIFACT: true
-      - name: Upload SARIF file
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload SARIF file - No GHAS
+        uses: actions/upload-artifact@v3
         with:
-          # Path to SARIF file relative to the root of the repository
-          sarif_file: stackhawk.sarif
-          # Optional category for the results
-          # Used to differentiate multiple results for one commit
-          category: StackHawk
+          name: StackHawk_Report_${{ github.run_id }}
+          path: stackhawk.sarif
+          if-no-files-found: error
+      - name: fetch-and-do-msdo-test
+        shell: bash
+        run: |
+          curl -L -o ./msdo_linux.zip https://www.nuget.org/api/v2/package/Microsoft.Security.DevOps.Cli.linux-x64/
+          unzip ./msdo_linux.zip
+          chmod +x tools/guardian
+          chmod +x tools/Microsoft.Guardian.Cli
+          ls -lah .
+          tools/guardian init --force
+          tools/guardian upload -f stackhawk.sarif
